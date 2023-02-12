@@ -1,0 +1,138 @@
+---
+title: "S:CORT Data Analysis Pipeline"
+subtitle: "Machine Learning Model Selection with Optimized Features"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author:
+- name: "Dr Sanjay Rathee"
+  affiliation: "University of Cambridge"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load discovery cohort as training data
+
+Load discovery cohort as training data and test multiple machine learning models for best AUC. All the ML models are optimized with a set of hyperparameters. 
+
+```{r warning=FALSE, message=FALSE}
+source("Global.R", local = knitr::knit_global())
+training <- read.csv("Discovery.csv", header = TRUE, row.names = 1)
+training$response <- as.factor(training$response)
+training[1:5,c(1:3,(dim(training)[2]-3):dim(training)[2])]
+```
+
+#### Train Eleastic Net Model
+
+The elastic net penalty is a powerful tool controlling the impact of correlated predictors and the overall complexity of generalized linear regression models. The elastic net penalty has two tuning parameters: λ for the complexity and α for the compromise between LASSO and ridge. The R package glmnet provides efficient tools for fitting elastic net models and selecting λ for a given α.
+
+```{r EN, warning=FALSE}
+set.seed(123)
+lambda <- 10^seq(-3, 3, length = 100)
+EN <- train(response ~., data = training, method = "glmnet", trControl = trainControl(method = "repeatedcv",
+            number = 10, repeats = 10, allowParallel = TRUE), tuneGrid = expand.grid(alpha = seq(0,1,0.1),
+                                                                                     lambda = lambda))
+max(EN$results$Accuracy, na.rm = TRUE)
+```
+
+#### Train Logistic Regression Model
+
+Logistic regression have limited critical hyperparameters to tune. The method and family could be critical.
+
+```{r LR, warning=FALSE}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, allowParallel = TRUE)
+set.seed(2345)
+LR <- train(response ~., data = training, method = "glm", family = "binomial", trControl=trctrl, tuneLength = 10)
+max(LR$results$Accuracy, na.rm = TRUE)
+```
+
+#### Train Support Vector Machine Model
+
+SVM has a tuning parameter C, also known as Cost, that determines the possible misclassifications. It essentially imposes a penalty to the model for making an error: the higher the value of C, the less likely it is that the SVM algorithm will misclassify a point.
+
+```{r SVM, warning=FALSE}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, allowParallel = TRUE,classProbs =  TRUE)
+grid <- expand.grid(C = c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2,5))
+set.seed(2345)
+SVM <- train(response ~., data = training, method = "svmLinear", trControl=trctrl, 
+             preProcess = c("center", "scale"), tuneGrid = grid, tuneLength = 10)
+max(SVM$results$Accuracy, na.rm = TRUE)
+```
+
+
+#### Train Neural Neutral Model
+
+Neural Network model needs to tune the size and decay hyperparameters.
+
+size: number of nodes in the hidden layer Note: There can only be one hidden layer using nnet
+decay: weight decay. regularization parameter to avoid overfitting, which adds a penalty for complexity.
+
+```{r NN, message=FALSE, warning=FALSE}
+numFolds <- trainControl(method = "repeatedcv", number = 10, repeats = 10,allowParallel = TRUE, search = "grid")
+grid <- expand.grid(size=c(seq(from = 1, to = 10, by = 1)),
+                      decay=c(seq(from = 0.0, to = 0.5, by = 0.1)))
+set.seed(567)
+NN <- train(response ~ ., training, method='nnet', trace = FALSE, preProcess = c('center', 'scale'), 
+                                    metric="Accuracy", trControl = numFolds, linout=FALSE, tuneGrid=grid)
+max(NN$results$Accuracy, na.rm = TRUE)
+```
+
+#### Train Random Forest Model
+
+In the random forest (RF) model, it's hard to pre-understand the result because RF models are randomly processed. The two main tunning parameters in the random forest model are mtry and ntree. Beside, there are many other methods but these two parameters perhaps most likely have the biggest effect on model accuracy.
+
+mtry: Number of variable is randomly collected to be sampled at each split time.
+ntree: Number of branches will grow after each time split.
+
+```{r RF, warning=FALSE}
+set.seed(567)
+bestmtry <- as.data.frame(tuneRF(training[,1:(dim(training)[2]-1)], training$response, 
+                                             stepFactor=1.5, improve=1e-5, ntree=2000))
+numFolds <- trainControl(method = "repeatedcv", number = 10, repeats = 10, 
+                                   allowParallel = TRUE, verbose=FALSE , search = "grid")
+grid <- expand.grid(.mtry=bestmtry$mtry)
+  
+set.seed(567)
+RF <- train(response ~ ., training, method='rf', trace = FALSE, preProcess = c('center', 'scale'), 
+                             metric="Accuracy",trControl = numFolds, linout=FALSE, tuneGrid=grid)
+max(RF$results$Accuracy, na.rm = TRUE)
+```
+
+
+#### Train Gradient Boosting Machines
+
+In Gradient Boosting Machines (GBM) model uses ensemble model which is based on Decision tree. A simple decision tree is considered to be a weak learner. The algorithm build sequential decision trees were each tree corrects the error occuring in the previous one until a condition is met.
+
+interaction.depth: Number of splits in each tree, which controls the complexity of the boosted ensemble.
+n.trees: Optimal number of trees that minimize the loss function of interest with cross validation.
+shrinkage: Controls how quickly the algorithm proceeds down the gradient descent.
+n.minobsinnode: Minimum number of observations allowed in the trees terminal nodes.
+
+```{r GBM, warning=FALSE, message=FALSE }
+set.seed(567)
+numFolds <- trainControl(method = "repeatedcv", number = 10,repeats = 10, allowParallel = TRUE, 
+                                                                verbose=FALSE , search = "grid")
+grid <- expand.grid(interaction.depth = c(1, 3, 5, 7, 9), 
+                      n.trees = (1:30)*50, 
+                      shrinkage = c(0.1,0.01, 1, 10, 100),
+                      n.minobsinnode = c(10,20))
+  
+set.seed(567)
+GBM <- train(response ~ ., training, method='gbm', metric="Accuracy", trControl = numFolds, tuneGrid=grid,verbose=FALSE)
+max(GBM$results$Accuracy, na.rm = TRUE)
+```
+
+#### Feature Selection using Boruta
+
+Boruta works as a wrapper algorithm around Random Forest. This package derive its name from a demon in Slavic mythology who dwelled in pine forests. it have four main steps during feature selection. Firstly, it adds randomness to the given data set by creating shuffled copies of all features (which are called shadow features). Then, it trains a random forest classifier on the extended data set and applies a feature importance measure (the default is Mean Decrease Accuracy) to evaluate the importance of each feature where higher means more important. At every iteration, it checks whether a real feature has a higher importance than the best of its shadow features (i.e. whether the feature has a higher Z score than the maximum Z score of its shadow features) and constantly removes features which are deemed highly unimportant. Finally, the algorithm stops either when all features gets confirmed or rejected or it reaches a specified limit of random forest runs.
+
+```{r Boruta, warning=FALSE, message=FALSE}
+set.seed(123)
+boruta.train <- Boruta(response~., data = training, doTrace = 2,  maxRuns= 3000, pValue = 0.05)
+print(boruta.train)
+final.boruta <- TentativeRoughFix(boruta.train)
+print(final.boruta)
+```
+
+The model with the best accuracy in cross-validation is selected for testing on a public dataset.
