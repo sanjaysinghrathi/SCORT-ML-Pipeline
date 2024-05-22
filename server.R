@@ -8,7 +8,7 @@ server <- function(input, output, session) {
   source('global.R', local = TRUE)
   
   
-  ## Find records for a drug name 1
+  ## Prepare validation Data
   gse87211_validate <- eventReactive(input$buttonValidateGse87211, ignoreNULL = TRUE, ignoreInit = FALSE, {
     if(input$choice=="Select"){
       shiny::validate(
@@ -35,10 +35,6 @@ server <- function(input, output, session) {
     return(list(results[[1]], results[[2]], accuracy_table, results[[4]]))
   })
 
-  # output$predictionprobs = DT::renderDataTable(DT::datatable(gse87211_validate()[[4]][,c(1:4)], escape=FALSE,
-  #                                                  options = list(pageLength = 5, autoWidth = TRUE,
-  #                                                   columnDefs = list(list( targets = c(4), width = '200px')),
-  #                                                   scrollX = TRUE)))
   output$predictionprobs = DT::renderDataTable(DT::datatable({gse87211_validate()[[4]][,c(1:4)]}
                                                              , extensions = 'Buttons'
                                                              , options = list( 
@@ -73,24 +69,7 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ## Find records for a drug name 1
+  ## Predict label for validation Data
   gse87211_predict <- eventReactive(input$buttonPredictGse87211, ignoreNULL = TRUE, ignoreInit = FALSE, {
     if(input$choice=="Select"){
       shiny::validate(
@@ -117,10 +96,6 @@ server <- function(input, output, session) {
     return(list(results[[1]], results[[2]], accuracy_table, results[[4]]))
   })
   
-  # output$predictionprobs = DT::renderDataTable(DT::datatable(gse87211_validate()[[4]][,c(1:4)], escape=FALSE,
-  #                                                  options = list(pageLength = 5, autoWidth = TRUE,
-  #                                                   columnDefs = list(list( targets = c(4), width = '200px')),
-  #                                                   scrollX = TRUE)))
   output$predictionprobs2 = DT::renderDataTable(DT::datatable({gse87211_predict()[[4]][,c(1:4)]}
                                                              , extensions = 'Buttons'
                                                              , options = list( 
@@ -142,17 +117,4 @@ server <- function(input, output, session) {
                                                              
   ), server = FALSE
   )
-
-  
-  
-  
-  # sample_data <- eventReactive({
-  #   sample_expression <- read.csv("sample_expression.csv", header = TRUE, row.names = 1)
-  #   sample_metadata <- read.csv("sample_metadata.csv", header = TRUE, row.names = 1)
-  #   return(list(sample_expression, sample_metadata))
-  # })
-  # output$sample_exp = DT::renderDataTable(DT::datatable({sample_data()[[1]]}))
-  # output$sample_meta = DT::renderDataTable(DT::datatable({sample_data()[[2]]}))
-  
-
 }
