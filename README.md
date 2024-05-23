@@ -1,10 +1,10 @@
 # SCORT-ML-Pipeline
 ## Overview
-This directory contains the code for a machine learning prediction model developed to identify colorectal cancer using a specific genetic signature. The signature was extracted using differential gene expression analysis tools such as Limma and samr. The model employs a gradient boosting machine trained on gene expression data from the S:CORT colorectal cancer cohort.
+This directory contains the code for a machine learning prediction model developed to predict pathological complete response from radiotherapy in rectal cancer biopsies using a specific transcriptional signature. The signature was extracted using differential gene expression analysis tools such as Limma and samr. The model employs a gradient boosting machine trained on gene expression data from two S:CORT rectal biopsy cohorts (Grampian and Aristotle) before receiving neoadjuvant treatment with radiotherapy and capecitabine (Domingo E, Rathee S et al, EBioMedicine, 2024).
 
 ## Features
-- **Prediction Model**: Utilizes gradient boosting to predict colorectal cancer based on gene expression data.
-- **Signature Extraction**: Differential gene expression analysis tools like Limma and samr were used to identify the genetic signature.
+- **Prediction Model**: Utilizes gradient boosting to predict complete response to radiotherapy in rectal cancer based on gene expression data.
+- **Signature Extraction**: Differential gene expression analysis tools like Limma and samr were used to identify the transcriptomic.
 - **R Shiny App**: The prediction tool is encapsulated in an R Shiny app, which can be run in RStudio or on an R Shiny server.
 
 ## Requirements
